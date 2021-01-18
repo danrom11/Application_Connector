@@ -45,13 +45,13 @@ MessageBox.Show(result);
 
 ### Send(string `data`, string `memoryName`)
 Запись-отправка данных в приложение памяти.
-#### Parameters:
+#### Параметры:
 string `data` - данные для передачи.</br>
 string `memoryName` - Название отдела переменной памяти.
 
 ### Accept(string `memoryName`)
 Принять-прочитать данные.
-#### Parameters:
+#### Параметры:
 string `memoryName` - Название отдела переменной памяти.
 
 ## Примеры использования
