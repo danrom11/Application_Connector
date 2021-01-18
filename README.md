@@ -1,7 +1,7 @@
 # Application Connector
 ## ENG
 **Application Connector** - A library that is capable of transferring data from one DotNet application to another DotNet application by means of memory formation.
-[Download library - Application Connector](https://github.com/danrom11/Application_Connector/releases)
+Download library - [Application Connector](https://github.com/danrom11/Application_Connector/releases)
 
 ## Methods:
 
@@ -41,7 +41,7 @@ MessageBox.Show(result);
 
 ## RU
 **Application Connector** - Библиотека которая способна передавать данные из одно DotNet приложение в другое DotNet приложение, по средством формирования памяти.  
-[Скачать библиотеку - Application Connector](https://github.com/danrom11/Application_Connector/releases)
+Скачать библиотеку - [Application Connector](https://github.com/danrom11/Application_Connector/releases)
 
 ## Методы:
 
