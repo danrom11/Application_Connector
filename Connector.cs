@@ -1,4 +1,9 @@
-﻿using System.IO.MemoryMappedFiles;
+﻿using System;
+using System.Collections.Generic;
+using System.IO.MemoryMappedFiles;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace Application_Connector
 {
@@ -65,6 +70,249 @@ namespace Application_Connector
             // Translation to string
             string strMessage = new string(message);
             return strMessage;
+        }
+    }
+    public class MultifunctionalConnector
+    {
+        // Server
+        public MultifunctionalConnector()
+        {
+            _IPAdrees = IPAddress.Any;
+            _PORT = 100;
+        }
+
+        public MultifunctionalConnector(string[] Commands)
+        {
+            _IPAdrees = IPAddress.Any;
+            _PORT = 100;
+            _Commands = Commands;
+        }
+
+        public MultifunctionalConnector(string IPAdress, int PORT)
+        {
+            _IPAdrees = IPAddress.Parse(IPAdress);
+            _PORT = PORT;
+        }
+
+        public MultifunctionalConnector(string IPAdress, int PORT, string[] Commands)
+        {
+            _IPAdrees = IPAddress.Parse(IPAdress);
+            _PORT = PORT;
+            _Commands = Commands;
+        }
+               
+        private static readonly Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        private static readonly List<Socket> clientSockets = new List<Socket>();
+        private const int BUFFER_SIZE = 2048;
+        private int _PORT;
+        private IPAddress _IPAdrees;
+        private string[] _Commands;
+        private bool sendMsg = false;
+        private static readonly byte[] buffer = new byte[BUFFER_SIZE];
+
+        public void ServerStart()
+        {
+            SetupServer();
+        }
+
+        public static void ServerClose()
+        {
+            foreach (Socket socket in clientSockets)
+            {
+                socket.Shutdown(SocketShutdown.Both);
+                socket.Close();
+            }
+
+            serverSocket.Close();
+        }
+
+        public void ServerSetCommands(string[] Commands)
+        {
+            _Commands = Commands;
+        }
+
+        private void SetupServer()
+        {
+            Console.WriteLine("Setting up server...");
+            serverSocket.Bind(new IPEndPoint(_IPAdrees, _PORT));
+            serverSocket.Listen(0);
+            serverSocket.BeginAccept(AcceptCallback, null);
+            Console.WriteLine("Server setup complete");
+        }
+
+        private void AcceptCallback(IAsyncResult AR)
+        {
+            Socket socket;
+
+            try
+            {
+                socket = serverSocket.EndAccept(AR);
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            clientSockets.Add(socket);
+            socket.BeginReceive(buffer, 0, BUFFER_SIZE, SocketFlags.None, ReceiveCallback, socket);
+            Console.WriteLine("Client connected, waiting for request...");
+            serverSocket.BeginAccept(AcceptCallback, null);
+        }
+
+        private void ReceiveCallback(IAsyncResult AR)
+        {
+            Socket current = (Socket)AR.AsyncState;
+            int received;
+            
+            try
+            {
+                received = current.EndReceive(AR);
+            }
+            catch (SocketException)
+            {
+                Console.WriteLine("Client forcefully disconnected");
+                // Don't shutdown because the socket may be disposed and its disconnected anyway.
+                current.Close();
+                clientSockets.Remove(current);
+                return;
+            }
+
+            byte[] recBuf = new byte[received];
+            Array.Copy(buffer, recBuf, received);
+            string text = Encoding.ASCII.GetString(recBuf);
+            Console.WriteLine("Received Text: " + text);
+
+            if (text.Contains("@"))
+            {       
+                if(StandardCommands(text) == "EX")
+                {
+                    // Always Shutdown before closing
+                    current.Shutdown(SocketShutdown.Both);
+                    current.Close();
+                    clientSockets.Remove(current);
+                    Console.WriteLine("Client disconnected");
+                    return;
+                }
+                else
+                {
+                    byte[] data = Encoding.ASCII.GetBytes(StandardCommands(text));
+                    current.Send(data);
+                }            
+            }
+
+                for (int k = 0; k < _Commands.Length; k++)
+                {
+                    if (text.ToLower() == _Commands[k].ToLower())
+                    {
+                        sendMsg = true;
+                        byte[] data = Encoding.ASCII.GetBytes(_Commands[k + 1]);
+                        current.Send(data);
+                    }                  
+                }
+              if(sendMsg != true)
+              {
+                 byte[] data = Encoding.ASCII.GetBytes("Invalid command");
+                 current.Send(data);
+              }
+            current.BeginReceive(buffer, 0, BUFFER_SIZE, SocketFlags.None, ReceiveCallback, current);
+        }
+
+        //List of standard commands
+        private string StandardCommands(string command)
+        {
+            if(command == "@get time")
+            {
+                sendMsg = true;
+                return DateTime.Now.ToLongTimeString();
+            }
+            if(command == "@get date")
+            {
+                sendMsg = true;
+                return DateTime.Now.ToShortDateString();
+            }
+            if(command == "@exit")
+            {
+                sendMsg = true;
+                return "EX";
+            }
+            Console.WriteLine("Standard Commands -> The command is missing");
+            return "Standard Commands -> The command is missing";
+        }
+
+
+
+
+        // Client
+        private static readonly Socket ClientSocket = new Socket
+           (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+        public void ClientConnect()
+        {
+            if(_IPAdrees == IPAddress.Any)
+            {
+                _IPAdrees = IPAddress.Loopback;
+            }
+            ConnectToServer();
+        }
+
+        private void ConnectToServer()
+        {
+            int attempts = 0;
+
+            while (!ClientSocket.Connected)
+            {
+                try
+                {
+                    attempts++;
+                    Console.WriteLine("Connection attempt " + attempts);
+                    // Change IPAddress.Loopback to a remote IP to connect to a remote host.
+                    ClientSocket.Connect(_IPAdrees, _PORT);
+                }
+                catch (SocketException)
+                {
+                    Console.Clear();
+                }
+            }
+
+            Console.Clear();
+            Console.WriteLine("Connected");
+        }
+
+        public string Request(string text)
+        {
+                SendString(text);
+                return ReceiveResponse();          
+        }
+
+        /// <summary>
+        /// Close socket and exit program.
+        /// </summary>
+        public void ClientDisconnect()
+        {
+            SendString("@exit");
+            ClientSocket.Shutdown(SocketShutdown.Both);
+            ClientSocket.Close();
+            Environment.Exit(0);
+        }
+
+        /// <summary>
+        /// Sends a string to the server with ASCII encoding.
+        /// </summary>
+        private static void SendString(string text)
+        {
+            byte[] buffer = Encoding.ASCII.GetBytes(text);
+            ClientSocket.Send(buffer, 0, buffer.Length, SocketFlags.None);
+        }
+
+        private static string ReceiveResponse()
+        {
+            var buffer = new byte[2048];
+            int received = ClientSocket.Receive(buffer, SocketFlags.None);
+            if (received == 0) return null;
+            var data = new byte[received];
+            Array.Copy(buffer, data, received);
+            string text = Encoding.ASCII.GetString(data);
+            return text;
         }
     }
 }
