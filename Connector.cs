@@ -163,7 +163,8 @@ namespace Application_Connector
         {
             Socket current = (Socket)AR.AsyncState;
             int received;
-            
+            sendMsg = false;
+
             try
             {
                 received = current.EndReceive(AR);
@@ -264,18 +265,18 @@ namespace Application_Connector
                 try
                 {
                     attempts++;
-                    Console.WriteLine("Connection attempt " + attempts);
+                    //Console.WriteLine("Connection attempt " + attempts);
                     // Change IPAddress.Loopback to a remote IP to connect to a remote host.
                     ClientSocket.Connect(_IPAdrees, _PORT);
                 }
                 catch (SocketException)
                 {
-                    Console.Clear();
+                   // Console.Clear();
                 }
             }
 
-            Console.Clear();
-            Console.WriteLine("Connected");
+           // Console.Clear();
+            //Console.WriteLine("Connected");
         }
 
         public string Request(string text)
@@ -292,7 +293,7 @@ namespace Application_Connector
             SendString("@exit");
             ClientSocket.Shutdown(SocketShutdown.Both);
             ClientSocket.Close();
-            Environment.Exit(0);
+            //Environment.Exit(0);
         }
 
         /// <summary>
