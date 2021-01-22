@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -115,7 +116,7 @@ namespace Application_Connector
             SetupServer();
         }
 
-        public static void ServerClose()
+        public void ServerClose()
         {
             foreach (Socket socket in clientSockets)
             {
@@ -181,7 +182,8 @@ namespace Application_Connector
             byte[] recBuf = new byte[received];
             Array.Copy(buffer, recBuf, received);
             string text = Encoding.ASCII.GetString(recBuf);
-            Console.WriteLine("Received Text: " + text);
+            Console.WriteLine(text);
+            text = text.Substring(text.IndexOf("->") + 3);
 
             if (text.Contains("@"))
             {       
@@ -236,7 +238,6 @@ namespace Application_Connector
                 sendMsg = true;
                 return "EX";
             }
-            Console.WriteLine("Standard Commands -> The command is missing");
             return "Standard Commands -> The command is missing";
         }
 
@@ -275,13 +276,13 @@ namespace Application_Connector
                 }
             }
 
-           // Console.Clear();
+            // Console.Clear();
             //Console.WriteLine("Connected");
         }
 
         public string Request(string text)
         {
-                SendString(text);
+                SendString(text, _IPAdrees);
                 return ReceiveResponse();          
         }
 
@@ -290,7 +291,7 @@ namespace Application_Connector
         /// </summary>
         public void ClientDisconnect()
         {
-            SendString("@exit");
+            SendString("@exit", _IPAdrees);
             ClientSocket.Shutdown(SocketShutdown.Both);
             ClientSocket.Close();
             //Environment.Exit(0);
@@ -299,9 +300,9 @@ namespace Application_Connector
         /// <summary>
         /// Sends a string to the server with ASCII encoding.
         /// </summary>
-        private static void SendString(string text)
+        private static void SendString(string text, IPAddress ipClient)
         {
-            byte[] buffer = Encoding.ASCII.GetBytes(text);
+            byte[] buffer = Encoding.ASCII.GetBytes(Convert.ToString(ipClient) + " -> " + text);
             ClientSocket.Send(buffer, 0, buffer.Length, SocketFlags.None);
         }
 
